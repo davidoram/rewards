@@ -80,5 +80,36 @@ func Test_Commit(t *testing.T) {
 	} else {
 		t.Error("Expected to insert 1 row, actually inserted ", (after - before))
 	}
+}
 
+func Test_Rollback(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(db)
+	before := countPeople(t, db)
+	context := NewContext(db)
+	if context == nil {
+		t.Fatal("Cant create context")
+	}
+
+	tx, err := context.Begin()
+	if err != nil {
+		t.Fatal("Failed on context.Begin")
+	}
+	_, err = tx.Exec("INSERT INTO people(name) VALUES ( 'Kerry')")
+	if err != nil {
+		t.Fatal("Failed on insert")
+	}
+	context.Rollback()
+	
+	err = context.End()
+	if err != nil {
+		t.Fatal("Failed on context.End")
+	}
+
+	after := countPeople(t, db)
+	if after == before {
+		t.Log("Rollback passed")
+	} else {
+		t.Error("Expected to rollback insert, but inserted ", (after - before))
+	}
 }
