@@ -113,3 +113,88 @@ func Test_Rollback(t *testing.T) {
 		t.Error("Expected to rollback insert, but inserted ", (after - before))
 	}
 }
+
+func Test_MutiStatementCommit(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(db)
+	context := NewContext(db)
+	if context == nil {
+		t.Fatal("Cant create context")
+	}
+
+	tx, err := context.Begin()
+	if err != nil {
+		t.Fatal("Failed on context.Begin")
+	}
+
+	_, err = tx.Exec("INSERT INTO people(name) VALUES ( 'Bob'), ('Rosa')")
+	if err != nil {
+		t.Fatal("Failed on insert 1")
+	}
+	
+	_, err = db.Exec("DELETE FROM people")
+	if err != nil {
+		t.Fatal("Failed on delete")
+	}
+
+	_, err = tx.Exec("INSERT INTO people(name) VALUES ('Dave'),('Kerry'),('Jack'),('Tom')")
+	if err != nil {
+		t.Fatal("Failed on insert 2")
+	}
+	err = context.End()
+	if err != nil {
+		t.Fatal("Failed on context.End")
+	}
+
+	after := countPeople(t, db)
+	if after != 4 {
+		t.Log("Commit passed")
+	} else {
+		t.Error("Expected 4 rows, actually have ", after)
+	}
+}
+
+func Test_MutiStatementRollback(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(db)
+	context := NewContext(db)
+	if context == nil {
+		t.Fatal("Cant create context")
+	}
+
+	// Start with an empty db
+	_, err := db.Exec("DELETE FROM people")
+	if err != nil {
+		t.Fatal("Failed on delete")
+	}
+
+	var tx *sql.Tx
+	tx, err = context.Begin()
+	if err != nil {
+		t.Fatal("Failed on context.Begin")
+	}
+
+	_, err = tx.Exec("INSERT INTO people(name) VALUES ( 'Bob'), ('Rosa')")
+	if err != nil {
+		t.Fatal("Failed on insert 1")
+	}
+	
+	_, err = tx.Exec("INSERT INTO people(name) VALUES ('Dave'),('Kerry'),('Jack'),('Tom')")
+	if err != nil {
+		t.Fatal("Failed on insert 2")
+	}
+
+	context.Rollback()
+	
+	err = context.End()
+	if err != nil {
+		t.Fatal("Failed on context.End")
+	}
+
+	after := countPeople(t, db)
+	if after == 0 {
+		t.Log("Rollback passed")
+	} else {
+		t.Error("Expected 0 rows, actually have ", after)
+	}
+}
