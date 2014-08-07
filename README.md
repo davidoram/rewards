@@ -14,6 +14,6 @@ Goals
 Testing
 -------
 
-$ psql postgres -c "create database reward_test;"
-$ export DB_CONNECT=postgres://davidoram:@localhost/reward_test?sslmode=disable; go test src/github.com/davidoram/rewards/context_test.go
-$ psql postgres -c "drop database reward_test;"
+$ psql postgres -c "create db reward_test;"
+$ DB_CONNECT=postgres://davidoram:@localhost/reward_test?sslmode=disable go test github.com/davidoram/rewards/context
+$ psql postgres -c "drop db reward_test;"

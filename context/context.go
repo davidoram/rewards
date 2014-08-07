@@ -2,29 +2,29 @@ package context
 
 import (
 	"database/sql"
+	"net/http"
 )
 
 // Shared context that is available in web request handlers
-// provides a database transaction context
+// provides a db transaction context
 type Context struct {
-  sql.DB *database
-  sql.Tx *tx
-  bool shouldCommit
+  db *sql.DB
+  tx *sql.Tx
+  shouldCommit bool
 }
 
-// Create a new Context for the database provided
-func NewContext(sql.DB *database) Context {
-  Context c = new(Context)
-  c.database = database
-  c.shouldCommit = true
-  return &c
+// Create a new Context for the db provided
+func NewContext(db *sql.DB) (*Context) {
+  return &Context{db: db, shouldCommit: true}
 }
+
 
 // Create a new Transactional context, or return the existing Transaction context
 // if one has already been created
-func (c Context) Begin (*Tx, error) {
+func (c Context) Begin() (*sql.Tx, error) {
   if c.tx == nil {
-    c.tx, err := c.database.Begin()
+		var err error
+    c.tx, err = c.db.Begin()
     if err != nil {
       return nil, err
     }
@@ -35,18 +35,17 @@ func (c Context) Begin (*Tx, error) {
 // Mark the Transaction in the context for rollback when EndContext is called.
 // If this is never called
 // then it is assumed that the transaction will be committed on EndContext
-func (c Context) Rollback {
+func (c Context) Rollback() {
   c.shouldCommit = false
 }
 
 // Close the Transactional context, by either committing or rolling back
-func (c Context) EndContext (error) {
+func (c Context) End() (error) {
   var err error = nil
   if c.tx != nil {
     if c.shouldCommit {
       err = c.tx.Commit()
-    }
-    else {
+    } else {
       err = c.tx.Rollback()
     }
   }
@@ -54,11 +53,11 @@ func (c Context) EndContext (error) {
 }
 
 type ContextHandler struct {
-	c context
-	f contextFunc
+	c Context
+	f ContextFunc
 }
 
-type ContextFunc func(c context, w http.ResponseWriter, r *http.Request)
+type ContextFunc func(c Context, w http.ResponseWriter, r *http.Request)
 
 func (h ContextHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	h.f(h.c, w, r)
