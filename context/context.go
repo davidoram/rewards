@@ -10,18 +10,18 @@ import (
 type Context struct {
   db *sql.DB
   tx *sql.Tx
-  shouldCommit bool
+  commitTx bool
 }
 
 // Create a new Context for the db provided
 func NewContext(db *sql.DB) (*Context) {
-  return &Context{db: db, shouldCommit: true}
+  return &Context{db: db, commitTx: true}
 }
 
 
 // Create a new Transactional context, or return the existing Transaction context
 // if one has already been created
-func (c Context) Begin() (*sql.Tx, error) {
+func (c *Context) Begin() (*sql.Tx, error) {
   if c.tx == nil {
 		var err error
     c.tx, err = c.db.Begin()
@@ -35,15 +35,15 @@ func (c Context) Begin() (*sql.Tx, error) {
 // Mark the Transaction in the context for rollback when EndContext is called.
 // If this is never called
 // then it is assumed that the transaction will be committed on EndContext
-func (c Context) Rollback() {
-  c.shouldCommit = false
+func (c *Context) Rollback() {
+  c.commitTx = false
 }
 
 // Close the Transactional context, by either committing or rolling back
-func (c Context) End() (error) {
+func (c *Context) End() (error) {
   var err error = nil
   if c.tx != nil {
-    if c.shouldCommit {
+    if c.commitTx {
       err = c.tx.Commit()
     } else {
       err = c.tx.Rollback()
