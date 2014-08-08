@@ -1,55 +1,55 @@
 package context
 
 import (
-	"database/sql"
+	//	"database/sql"
+	"github.com/jmoiron/sqlx"
 	"net/http"
 )
 
 // Shared context that is available in web request handlers
 // provides a db transaction context
 type Context struct {
-  db *sql.DB
-  tx *sql.Tx
-  commitTx bool
+	db       *sqlx.DB
+	tx       *sqlx.Tx
+	commitTx bool
 }
 
 // Create a new Context for the db provided
-func NewContext(db *sql.DB) (*Context) {
-  return &Context{db: db, commitTx: true}
+func NewContext(db *sqlx.DB) *Context {
+	return &Context{db: db, commitTx: true}
 }
-
 
 // Create a new Transactional context, or return the existing Transaction context
 // if one has already been created
-func (c *Context) Begin() (*sql.Tx, error) {
-  if c.tx == nil {
-		var err error
-    c.tx, err = c.db.Begin()
-    if err != nil {
-      return nil, err
-    }
-  }
-  return c.tx, nil
+// Panic on error
+func (c *Context) Begin() *sqlx.Tx {
+	if c.tx == nil {
+		c.tx = c.db.MustBegin()
+	}
+	return c.tx
 }
 
 // Mark the Transaction in the context for rollback when EndContext is called.
 // If this is never called
 // then it is assumed that the transaction will be committed on EndContext
 func (c *Context) Rollback() {
-  c.commitTx = false
+	c.commitTx = false
 }
 
 // Close the Transactional context, by either committing or rolling back
-func (c *Context) End() (error) {
-  var err error = nil
-  if c.tx != nil {
-    if c.commitTx {
-      err = c.tx.Commit()
-    } else {
-      err = c.tx.Rollback()
-    }
-  }
-  return err
+// Panic on error
+func (c *Context) End() {
+	var err error = nil
+	if c.tx != nil {
+		if c.commitTx {
+			err = c.tx.Commit()
+		} else {
+			err = c.tx.Rollback()
+		}
+	}
+	if err != nil {
+		panic(err)
+	}
 }
 
 type ContextHandler struct {
