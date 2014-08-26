@@ -45,7 +45,7 @@ func Test_Commit(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(db)
 	before := countPeople(t, db)
-	context := NewContext(db)
+	context := NewDatabaseContext(db)
 	if context == nil {
 		t.Fatal("Cant create context")
 	}
@@ -66,7 +66,7 @@ func Test_Rollback(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(db)
 	before := countPeople(t, db)
-	context := NewContext(db)
+	context := NewDatabaseContext(db)
 
 	tx := context.Begin()
 	tx.MustExec("INSERT INTO people(name) VALUES ( 'Kerry')")
@@ -85,7 +85,7 @@ func Test_Rollback(t *testing.T) {
 func Test_MutiStatementCommit(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(db)
-	context := NewContext(db)
+	context := NewDatabaseContext(db)
 
 	tx := context.Begin()
 	tx.MustExec("INSERT INTO people(name) VALUES ( 'Bob'), ('Rosa')")
@@ -104,7 +104,7 @@ func Test_MutiStatementCommit(t *testing.T) {
 func Test_MutiStatementRollback(t *testing.T) {
 	db := openDB(t)
 	defer closeDB(db)
-	context := NewContext(db)
+	context := NewDatabaseContext(db)
 
 	// Start with an empty db
 	db.MustExec("DELETE FROM people")

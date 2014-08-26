@@ -9,31 +9,31 @@ import (
 
 // Shared context that is available in web request handlers
 // provides a db transaction context
-type Context struct {
+type DatabaseContext struct {
 	db       *sqlx.DB
 	tx       *sqlx.Tx
 	commitTx bool
 }
 
-// Create a new Context for the db provided
-func NewContext(db *sqlx.DB) *Context {
-	return &Context{db: db, commitTx: true}
+// Create a new DatabaseContext for the db provided
+func NewDatabaseContext(db *sqlx.DB) *DatabaseContext {
+	return &DatabaseContext{db: db, commitTx: true}
 }
 
 // Create a new Transactional context, or return the existing Transaction context
 // if one has already been created
 // Panic on error
-func (c *Context) Begin() *sqlx.Tx {
+func (c *DatabaseContext) Begin() *sqlx.Tx {
 	if c.tx == nil {
 		c.tx = c.db.MustBegin()
 	}
 	return c.tx
 }
 
-// Mark the Transaction in the context for rollback when EndContext is called.
+// Mark the Transaction in the context for rollback when EndDatabaseContext is called.
 // If this is never called
-// then it is assumed that the transaction will be committed on EndContext
-func (c *Context) Rollback() {
+// then it is assumed that the transaction will be committed on EndDatabaseContext
+func (c *DatabaseContext) Rollback() {
 	c.commitTx = false
 }
 
@@ -46,7 +46,7 @@ func check(err error) {
 
 // Close the Transactional context, by either committing or rolling back
 // Panic on error
-func (c *Context) End() {
+func (c *DatabaseContext) End() {
 	var err error = nil
 	if c.tx != nil {
 		if c.commitTx {
@@ -63,21 +63,21 @@ type key int
 // Key used to store a database Connection in the request
 const dbkey key = 87865544073
 
-// GetDatabase returns the Context from the request values.
-func GetDatabase(r *http.Request) *Context {
+// GetDatabase returns the DatabaseContext from the request values.
+func GetDatabase(r *http.Request) *DatabaseContext {
 	if rv := httpcontext.Get(r, dbkey); rv != nil {
-		return rv.(*Context)
+		return rv.(*DatabaseContext)
 	}
 	panic("Missing dbkey in http context")
 }
 
-// SetDatabase sets a Context for this package in the request values.
-func SetDatabase(r *http.Request, val *Context) {
+// SetDatabase sets a DatabaseContext for this package in the request values.
+func SetDatabase(r *http.Request, val *DatabaseContext) {
 	httpcontext.Set(r, dbkey, val)
 }
 
 // DeleteDatabase completes the request by committing or rolling back the tx, and
-// then deletes the Context from the request values.
+// then deletes the DatabaseContext from the request values.
 func EndDatabase(r *http.Request) {
 	defer httpcontext.Delete(r, dbkey)
 	GetDatabase(r).End()
@@ -87,7 +87,7 @@ func EndDatabase(r *http.Request) {
 // Use as follows
 func DatabaseHandler(h http.Handler, db *sqlx.DB) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		context := NewContext(db)
+		context := NewDatabaseContext(db)
 		SetDatabase(r, context)
 		defer EndDatabase(r)
 		h.ServeHTTP(w, r)
