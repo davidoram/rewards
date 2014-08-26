@@ -2,8 +2,12 @@ package context
 
 import (
 	//	"database/sql"
+	"fmt"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
+	"io/ioutil"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 )
@@ -118,4 +122,35 @@ func Test_MutiStatementRollback(t *testing.T) {
 	} else {
 		t.Error("Expected 0 rows, actually have ", after)
 	}
+}
+
+func pingHandler(w http.ResponseWriter, r *http.Request) {
+	tx := GetDatabase(r).Begin()
+	tx.MustExec("SELECT 1")
+	fmt.Fprintln(w, "ok")
+}
+
+func Test_HttpPing(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(db)
+
+	ts := httptest.NewServer(DatabaseHandler(http.HandlerFunc(pingHandler), db))
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer resp.Body.Close()
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(b)
+	expected := "ok\n"
+	if body != expected {
+		t.Errorf("Response mismatch, got '%q', expected '%q'", body, expected)
+	}
+
 }

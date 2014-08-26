@@ -2,6 +2,7 @@ package context
 
 import (
 	//	"database/sql"
+	httpcontext "github.com/gorilla/context"
 	"github.com/jmoiron/sqlx"
 	"net/http"
 )
@@ -52,24 +53,38 @@ func (c *Context) End() {
 	}
 }
 
-type ContextHandler struct {
-	c Context
-	f ContextFunc
+type key int
+
+// Key used to store a database Connection in the request
+const dbkey key = 87865544073
+
+// GetDatabase returns the Context from the request values.
+func GetDatabase(r *http.Request) *Context {
+	if rv := httpcontext.Get(r, dbkey); rv != nil {
+		return rv.(*Context)
+	}
+	panic("Missing dbkey in http context")
 }
 
-type ContextFunc func(c Context, w http.ResponseWriter, r *http.Request)
-
-func (h ContextHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.f(h.c, w, r)
+// SetDatabase sets a Context for this package in the request values.
+func SetDatabase(r *http.Request, val *Context) {
+	httpcontext.Set(r, dbkey, val)
 }
 
-/*
-func f1(c context, w http.ResponseWriter, r *http.Request) {
-    // Implement the handler here
+// DeleteDatabase completes the request by committing or rolling back the tx, and
+// then deletes the Context from the request values.
+func EndDatabase(r *http.Request) {
+	defer httpcontext.Delete(r, dbkey)
+	GetDatabase(r).End()
 }
 
-func main() {
-    c := NewContext(...) // Set up your context here
-    http.Handle("/", ContextHandler{c, f1})
+// Handler that provides Database access to downstream handlers
+// Use as follows
+func DatabaseHandler(h http.Handler, db *sqlx.DB) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		context := NewContext(db)
+		SetDatabase(r, context)
+		defer EndDatabase(r)
+		h.ServeHTTP(w, r)
+	})
 }
-*/
