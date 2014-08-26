@@ -37,6 +37,13 @@ func (c *Context) Rollback() {
 	c.commitTx = false
 }
 
+// Panic on err != nil
+func check(err error) {
+	if err != nil {
+		panic(err)
+	}
+}
+
 // Close the Transactional context, by either committing or rolling back
 // Panic on error
 func (c *Context) End() {
@@ -48,9 +55,7 @@ func (c *Context) End() {
 			err = c.tx.Rollback()
 		}
 	}
-	if err != nil {
-		panic(err)
-	}
+	check(err)
 }
 
 type key int

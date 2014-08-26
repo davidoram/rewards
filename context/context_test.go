@@ -154,3 +154,45 @@ func Test_HttpPing(t *testing.T) {
 	}
 
 }
+
+type Person struct {
+	Name string
+}
+
+func selectHandler(w http.ResponseWriter, r *http.Request) {
+	tx := GetDatabase(r).Begin()
+	pp := []Person{}
+	err := tx.Select(&pp, "SELECT name FROM people ORDER BY name")
+	check(err)
+	for _, p := range pp {
+		fmt.Fprintln(w, p.Name)
+	}
+}
+
+func Test_HttpSelect(t *testing.T) {
+	db := openDB(t)
+	defer closeDB(db)
+	// Start with an empty db
+	db.MustExec("DELETE FROM people")
+	db.MustExec("INSERT INTO people(name) VALUES ('Tom'),('Jack'),('Kerry')")
+
+	ts := httptest.NewServer(DatabaseHandler(http.HandlerFunc(selectHandler), db))
+	defer ts.Close()
+
+	resp, err := http.Get(ts.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer resp.Body.Close()
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(b)
+	expected := "Jack\nKerry\nTom\n"
+	if body != expected {
+		t.Errorf("Response mismatch, got '%q', expected '%q'", body, expected)
+	}
+
+}
