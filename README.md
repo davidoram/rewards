@@ -15,5 +15,5 @@ Testing
 -------
 
 $ psql postgres -c "create db reward_test;"
-$ DB_CONNECT=postgres://davidoram:@localhost/reward_test?sslmode=disable go test github.com/davidoram/rewards/context
+$ DB_CONNECT=postgres://<username>:@localhost/reward_test?sslmode=disable go test github.com/davidoram/rewards/context
 $ psql postgres -c "drop db reward_test;"

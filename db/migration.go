@@ -54,9 +54,9 @@ func IsMigrated(db *sqlx.DB, filename string) bool {
 // file path information is stripped
 func setMigrated(db *sqlx.DB, filename string) {
 	db.MustExec(`INSERT INTO migrations ( 
-                              filename 
-                          ) VALUES ( 
-                              $1 
-                          )`,
+                  filename 
+                ) VALUES ( 
+                  $1 
+                )`,
 		filepath.Base(filename))
 }
